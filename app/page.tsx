@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import banner from "@/public/Images/ban1.png";
+import banner2 from "@/public/Images/ban4.png";
+import banner3 from "@/public/Images/ban5.png";
 import Image from "next/image";
 
 declare global {
@@ -396,7 +398,7 @@ export default function Home() {
             }}
           >
             <Image
-              src={banner}
+              src={banner3}
               alt="ikration Banner"
               className="w-full h-auto rounded-2xl shadow-2xl"
             />

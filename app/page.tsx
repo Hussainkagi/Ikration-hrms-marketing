@@ -439,12 +439,26 @@ export default function Home() {
               transition: "none",
             }}
           >
-            <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden shadow-[0_10px_40px_rgb(0,0,0,0.15),0_25px_80px_rgb(0,0,0,0.1)]">
+            <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden shadow-[0_10px_40px_rgb(0,0,0,0.15),0_25px_80px_rgb(0,0,0,0.1)] group cursor-pointer">
               <Image
                 src={banner3}
                 alt="Ikration Banner"
-                className="w-full h-auto"
+                className="w-full h-auto transition-all duration-500 group-hover:blur-[2px] group-hover:brightness-50"
               />
+
+              {/* Hover Overlay */}
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center p-8">
+                <div className="text-white text-center transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500 delay-100">
+                  <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4">
+                    Seamless Dashboard Experience
+                  </h3>
+                  <p className="text-base sm:text-lg md:text-xl text-gray-200 max-w-2xl mx-auto leading-relaxed">
+                    Ikration provides you with a seamless dashboard to keep
+                    track of all data, take backups, export and analyze your
+                    reports effectively
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

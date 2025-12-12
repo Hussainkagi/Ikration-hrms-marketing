@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Building2, X, Sparkles } from "lucide-react";
-import Image from "next/image";
-import banner3 from "@/public/Images/ban5.png";
 import Howitwork from "@/components/Sections/howitwork";
 import Features from "@/components/Sections/features";
+import Image from "next/image";
+import banner3 from "@/public/Images/ban5.png";
 
 declare global {
   interface Window {
@@ -169,10 +169,13 @@ export default function Home() {
   const [heroVisible, setHeroVisible] = useState(true);
   const [showTooltip, setShowTooltip] = useState(true);
   const imageRef = useRef<any>(null);
-  const [imageScale, setImageScale] = useState(0.5);
+  const [imageScale, setImageScale] = useState(0.9);
+  const [imageOpacity, setImageOpacity] = useState(0);
+  const [imageY, setImageY] = useState(40);
   const videoRef = useRef<any>(null);
   const videoElementRef = useRef<HTMLVideoElement>(null);
-  const [cinemaEffect, setCinemaEffect] = useState(0);
+  const [videoProgress, setVideoProgress] = useState(0);
+  const [videoBlur, setVideoBlur] = useState(8);
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -188,38 +191,73 @@ export default function Home() {
 
   useEffect(() => {
     const handleScroll = () => {
-      // Image scale animation
       if (imageRef.current) {
         const rect = imageRef.current.getBoundingClientRect();
         const windowHeight = window.innerHeight;
-        const imageTop = rect.top;
-        const imageBottom = rect.bottom;
+        const elementHeight = rect.height;
 
-        if (imageTop < windowHeight && imageBottom > 0) {
-          const visibleHeight =
-            Math.min(imageBottom, windowHeight) - Math.max(imageTop, 0);
-          const sectionHeight = rect.height;
-          const visibilityRatio = visibleHeight / sectionHeight;
+        const elementCenter = rect.top + elementHeight / 2;
+        const viewportCenter = windowHeight / 2;
 
-          const scale = 0.5 + visibilityRatio * 0.5;
-          setImageScale(Math.min(scale, 1));
-        }
+        // Calculate distance from center (0 = perfectly centered, 1 = far away)
+        const distanceFromCenter = Math.abs(elementCenter - viewportCenter);
+        const maxDistance = windowHeight * 0.8;
+
+        // Proximity to center: 1 = centered, 0 = far away
+        const centerProximity = Math.max(
+          0,
+          Math.min(1, 1 - distanceFromCenter / maxDistance)
+        );
+
+        // Apple-style easing for smooth zoom
+        const easeInOutQuart = (t: number) =>
+          t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2;
+        const easedProgress = easeInOutQuart(centerProximity);
+
+        // Scale: starts at 0.7, peaks at 1.0 when centered, goes back to 0.7
+        const scale = 0.7 + easedProgress * 0.3;
+        setImageScale(scale);
+
+        // Fade in/out based on distance from center
+        setImageOpacity(Math.min(1, centerProximity * 1.2));
+
+        // Subtle parallax - moves less when centered
+        const yOffset = (1 - easedProgress) * 30;
+        setImageY(yOffset);
       }
 
-      // Cinema effect for video
       if (videoRef.current) {
         const rect = videoRef.current.getBoundingClientRect();
         const windowHeight = window.innerHeight;
         const windowCenter = windowHeight / 2;
         const videoCenter = rect.top + rect.height / 2;
 
-        const distanceFromCenter =
-          Math.abs(videoCenter - windowCenter) / windowHeight;
-        const effect = Math.max(0, 1 - distanceFromCenter * 2);
-        setCinemaEffect(effect);
+        // Distance from center (0 = center, 1 = edge)
+        const distanceFromCenter = Math.abs(videoCenter - windowCenter);
+        const maxDistance = windowHeight * 0.7;
+        const centerProximity = Math.max(
+          0,
+          Math.min(1, 1 - distanceFromCenter / maxDistance)
+        );
 
+        // Apple-style easing for smooth focus effect
+        const easeInOutQuart = (t: number) =>
+          t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2;
+        const easedProgress = easeInOutQuart(centerProximity);
+
+        setVideoProgress(easedProgress);
+
+        // Blur effect for depth (8px → 0px)
+        const blur = 8 - easedProgress * 8;
+        setVideoBlur(blur);
+
+        // Auto-play when in view
         if (videoElementRef.current) {
-          if (effect > 0.5) {
+          if (
+            centerProximity > 0.3 &&
+            rect.top < windowHeight &&
+            rect.bottom > 0
+          ) {
             videoElementRef.current.play().catch(() => {});
           } else {
             videoElementRef.current.pause();
@@ -228,9 +266,21 @@ export default function Home() {
       }
     };
 
-    window.addEventListener("scroll", handleScroll);
+    // Use requestAnimationFrame for smoother 60fps animations
+    let ticking = false;
+    const scrollListener = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          handleScroll();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener("scroll", scrollListener, { passive: true });
     handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", scrollListener);
   }, []);
 
   return (
@@ -376,66 +426,87 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Banner Image Section with Scale Animation - REDUCED PADDING */}
       <section
         ref={imageRef}
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative"
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-24 relative overflow-hidden"
       >
-        {" "}
-        <div className="relative flex items-center justify-center">
-          {" "}
+        <div className="relative flex items-center justify-center perspective-1000">
           <div
-            className="transition-all duration-700 ease-out"
-            style={{ transform: `scale(${imageScale})`, width: "100%" }}
+            className="w-full will-change-transform"
+            style={{
+              transform: `scale(${imageScale}) translateY(${imageY}px) translateZ(0)`,
+              opacity: imageOpacity,
+              transition: "none",
+            }}
           >
-            <Image
-              src={banner3}
-              alt="ikration Banner"
-              className="w-full h-auto rounded-2xl shadow-2xl"
-            />{" "}
-          </div>{" "}
-        </div>{" "}
+            <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden shadow-[0_10px_40px_rgb(0,0,0,0.15),0_25px_80px_rgb(0,0,0,0.1)]">
+              <Image
+                src={banner3}
+                alt="Ikration Banner"
+                className="w-full h-auto"
+              />
+            </div>
+          </div>
+        </div>
       </section>
 
-      {/* Cinematic Video Section - REDUCED PADDING */}
-      <section className="relative py-8 sm:py-12 lg:py-16 min-h-[60vh] sm:min-h-screen flex items-center">
-        {/* Dark vignette overlay */}
+      <section className="relative py-12 sm:py-20 md:py-32 min-h-[80vh] sm:min-h-screen flex items-center">
+        {/* Cinema background - fades to black when video is in focus */}
         <div
-          className="fixed inset-0 pointer-events-none transition-opacity duration-700 ease-out z-40"
+          className="fixed inset-0 pointer-events-none z-30 transition-opacity duration-700"
           style={{
-            opacity: cinemaEffect,
-            background: `radial-gradient(ellipse at center, transparent 0%, transparent 30%, rgba(0, 0, 0, ${
-              0.7 * cinemaEffect
-            }) 70%, rgba(0, 0, 0, ${0.9 * cinemaEffect}) 100%)`,
+            opacity: videoProgress * 0.92,
+            backgroundColor: "rgba(0, 0, 0, 1)",
+          }}
+        />
+
+        {/* Enhanced vignette for cinema effect */}
+        <div
+          className="fixed inset-0 pointer-events-none z-35"
+          style={{
+            opacity: videoProgress,
+            background: `radial-gradient(ellipse 70% 60% at 50% 50%, transparent 20%, rgba(0, 0, 0, ${
+              0.4 * videoProgress
+            }) 100%)`,
+            transition: "opacity 0.5s ease-out",
           }}
         />
 
         <div
           ref={videoRef}
-          className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-50 w-full"
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-50 w-full"
         >
           <div
-            className="relative transition-all duration-700 ease-out"
+            className="relative will-change-transform"
             style={{
-              transform: `scale(${0.95 + cinemaEffect * 0.05})`,
+              transform: `scale(${0.94 + videoProgress * 0.06}) translateZ(0)`,
+              filter: `blur(${videoBlur}px)`,
+              transition: "none",
             }}
           >
+            {/* Video container with premium shadow that intensifies in cinema mode */}
             <div
-              className="relative rounded-xl sm:rounded-2xl overflow-hidden transition-shadow duration-700"
+              className="relative rounded-xl sm:rounded-2xl md:rounded-3xl overflow-hidden"
               style={{
-                boxShadow:
-                  cinemaEffect > 0.3
-                    ? `0 0 ${40 * cinemaEffect}px rgba(234, 88, 12, ${
-                        0.5 * cinemaEffect
-                      }), 0 0 ${80 * cinemaEffect}px rgba(234, 88, 12, ${
-                        0.3 * cinemaEffect
-                      }), 0 20px 60px rgba(0, 0, 0, ${0.3 * cinemaEffect})`
-                    : "0 10px 40px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1)",
+                boxShadow: `
+                  0 ${20 + videoProgress * 40}px ${
+                  60 + videoProgress * 80
+                }px -${12 - videoProgress * 8}px rgba(0, 0, 0, ${
+                  0.3 + videoProgress * 0.4
+                }),
+                  0 ${10 + videoProgress * 20}px ${
+                  40 + videoProgress * 60
+                }px -${8 - videoProgress * 6}px rgba(0, 0, 0, ${
+                  0.2 + videoProgress * 0.3
+                }),
+                  0 0 0 1px rgba(255, 255, 255, ${0.05 * videoProgress})
+                `,
+                transition: "box-shadow 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
               }}
             >
               <video
                 ref={videoElementRef}
-                className="w-full h-auto"
+                className="w-full h-auto block"
                 loop
                 muted
                 playsInline
@@ -446,19 +517,30 @@ export default function Home() {
               </video>
             </div>
 
-            {/* Cinema title overlay */}
+            {/* Elegant title with enhanced contrast for cinema mode */}
             <div
-              className="absolute top-4 sm:top-8 left-1/2 -translate-x-1/2 transition-all duration-700"
+              className="absolute top-4 sm:top-6 md:top-10 left-1/2 -translate-x-1/2"
               style={{
-                opacity: cinemaEffect,
+                opacity: videoProgress,
                 transform: `translateX(-50%) translateY(${
-                  (1 - cinemaEffect) * -20
+                  (1 - videoProgress) * -20
                 }px)`,
+                transition:
+                  "opacity 0.4s ease-out, transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
               }}
             >
-              <h3 className="text-white text-xl sm:text-2xl md:text-3xl font-bold text-center drop-shadow-2xl px-4">
-                See Ikration in Action
-              </h3>
+              <div className="relative">
+                <h3 className="text-white text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-center px-4 sm:px-6 tracking-tight drop-shadow-2xl">
+                  See Ikration in Action
+                </h3>
+                <div
+                  className="absolute inset-0 blur-3xl -z-10"
+                  style={{
+                    background:
+                      "radial-gradient(ellipse at center, rgba(0, 0, 0, 0.8) 0%, transparent 70%)",
+                  }}
+                />
+              </div>
             </div>
           </div>
         </div>
